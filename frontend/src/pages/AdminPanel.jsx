@@ -11,7 +11,8 @@ const AdminPanel = () => {
     
     const fetchUsers = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/users');
+            
+            const response = await axios.get('https://itransition-backend-fsn3.onrender.com/api/users');
             setUsers(response.data);
         } catch (err) {
             setError('Failed to fetch users or session expired.');
@@ -44,9 +45,10 @@ const AdminPanel = () => {
     const handleBlock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('http://localhost:5000/api/users/block', { userIds: selectedIds });
+            
+            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/block', { userIds: selectedIds });
             setSelectedIds([]);
-            fetchUsers(); // টেবিল রিফ্রেশ করা
+            fetchUsers(); 
         } catch (err) {
             setError('Action failed. You might be blocked or unauthorized.');
         }
@@ -55,7 +57,8 @@ const AdminPanel = () => {
     const handleUnblock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('http://localhost:5000/api/users/unblock', { userIds: selectedIds });
+            
+            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/unblock', { userIds: selectedIds });
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
@@ -67,7 +70,8 @@ const AdminPanel = () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm('Are you sure you want to delete selected users?')) return;
         try {
-            await axios.post('http://localhost:5000/api/users/delete', { userIds: selectedIds });
+            
+            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/delete', { userIds: selectedIds });
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
@@ -126,7 +130,6 @@ const AdminPanel = () => {
                     <thead className="table-light border-bottom">
                         <tr>
                             <th style={{ width: '40px' }} className="ps-3">
-                                
                                 <input 
                                     type="checkbox" 
                                     className="form-check-input"
@@ -162,10 +165,10 @@ const AdminPanel = () => {
                                         {user.last_login_time ? new Date(user.last_login_time).toLocaleString() : 'N/A'}
                                     </td>
                                     <td>
-                                        <span className={`badge px-2 py-1 fw-normal style={{ borderRadius: '2px' }} ${
+                                        <span className={`badge px-2 py-1 fw-normal ${
                                             user.status === 'blocked' ? 'bg-danger-subtle text-danger' : 
                                             user.status === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
-                                        }`}>
+                                        }`} style={{ borderRadius: '2px' }}>
                                             {user.status}
                                         </span>
                                     </td>

@@ -19,7 +19,7 @@ const Register = () => {
 
         try {
             
-            const response = await axios.post('http://localhost:5000/api/auth/register', formData);
+            const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/register', formData);
             
             if (response.data.success) {
                 setSuccess(response.data.message);
