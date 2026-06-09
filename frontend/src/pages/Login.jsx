@@ -6,8 +6,8 @@ import { useAuth } from '../context/AuthContext';
 const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
-    const navigate = useNavigate();
     const { login } = useAuth();
+    const navigate = useNavigate();
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,19 +18,21 @@ const Login = () => {
         setError('');
 
         try {
+            // ✅ ১. লাইভ রেন্ডার ব্যাকএন্ড এপিআই লিঙ্ক
             const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/login', formData);
             
             if (response.data.success) {
                 // AuthContext-এ ইউজার ও টোকেন সেভ করা
                 login(response.data.user, response.data.token);
-                // রিডাইরেক্ট করে অ্যাডমিন প্যানেল বা হোম রাউটে পাঠানো
-                navigate('/'); 
+                
+                // ✅ ২. পরিবর্তন: '/admin' কেটে সরাসরি মূল লিঙ্কে ('/') নেভিগেট করা হলো
+                navigate('/');
             }
         } catch (err) {
             if (err.response && err.response.data && err.response.data.error) {
                 setError(err.response.data.error);
             } else {
-                setError('Invalid credentials or server error.');
+                setError('Invalid email or password.');
             }
         }
     };
@@ -54,6 +56,7 @@ const Login = () => {
                     </div>
                     <button type="submit" className="btn btn-primary btn-sm w-100 mt-2" style={{ borderRadius: '2px' }}>Sign In</button>
                 </form>
+                
                 <div className="text-center mt-3 small">
                     <span className="text-muted">Don't have an account? </span>
                     <Link to="/register" className="text-decoration-none">Sign Up</Link>
