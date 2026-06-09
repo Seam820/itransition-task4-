@@ -18,7 +18,6 @@ const Register = () => {
         setSuccess('');
 
         try {
-            
             const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/register', formData);
             
             if (response.data.success) {
@@ -28,7 +27,6 @@ const Register = () => {
                 setTimeout(() => navigate('/login'), 2000);
             }
         } catch (err) {
-            
             if (err.response && err.response.data && err.response.data.error) {
                 setError(err.response.data.error);
             } else {
