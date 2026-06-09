@@ -18,11 +18,12 @@ const Login = () => {
         setError('');
 
         try {
-        
             const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/login', formData);
             
             if (response.data.success) {
+                // AuthContext-এ ইউজার ও টোকেন সেভ করা
                 login(response.data.user, response.data.token);
+                // রিডাইরেক্ট করে অ্যাডমিন প্যানেল বা হোম রাউটে পাঠানো
                 navigate('/'); 
             }
         } catch (err) {
