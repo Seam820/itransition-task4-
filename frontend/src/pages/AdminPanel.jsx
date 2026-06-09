@@ -8,12 +8,21 @@ const AdminPanel = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
 
+   
     const fetchUsers = async () => {
         try {
             const response = await axios.get('https://itransition-backend-fsn3.onrender.com/api/users');
-            setUsers(response.data);
+            
+            
+            const sortedUsers = response.data.sort((a, b) => {
+                return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
+            });
+            
+            setUsers(sortedUsers);
         } catch (err) {
             setError('Failed to fetch users or session expired.');
+            
+            setTimeout(() => logout(), 2000);
         }
     };
 
@@ -46,6 +55,7 @@ const AdminPanel = () => {
             fetchUsers();
         } catch (err) {
             setError('Action failed. You might be blocked or unauthorized.');
+            setTimeout(() => logout(), 2000); 
         }
     };
 
@@ -57,6 +67,7 @@ const AdminPanel = () => {
             fetchUsers();
         } catch (err) {
             setError('Action failed.');
+            setTimeout(() => logout(), 2000);
         }
     };
 
@@ -69,6 +80,19 @@ const AdminPanel = () => {
             fetchUsers();
         } catch (err) {
             setError('Action failed.');
+            setTimeout(() => logout(), 2000);
+        }
+    };
+
+   
+    const handleDeleteUnverified = async () => {
+        if (!window.confirm('Are you sure you want to delete all unverified users?')) return;
+        try {
+            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/delete-unverified');
+            fetchUsers();
+        } catch (err) {
+            setError('Action failed.');
+            setTimeout(() => logout(), 2000);
         }
     };
 
@@ -83,10 +107,17 @@ const AdminPanel = () => {
 
             {error && <div className="alert alert-danger py-2 small">{error}</div>}
 
+            
             <div className="bg-white p-2 border mb-3 d-flex align-items-center gap-2 shadow-sm" style={{ borderRadius: '4px' }}>
-                <button className="btn btn-danger btn-sm px-3" onClick={handleBlock} disabled={selectedIds.length === 0} style={{ borderRadius: '2px' }}>Block</button>
-                <button className="btn btn-light btn-sm border" onClick={handleUnblock} disabled={selectedIds.length === 0} title="Unblock Users" style={{ borderRadius: '2px' }}><i className="bi bi-unlock-fill text-success"></i></button>
-                <button className="btn btn-light btn-sm border" onClick={handleDelete} disabled={selectedIds.length === 0} title="Delete Users" style={{ borderRadius: '2px' }}><i className="bi bi-trash-fill text-danger"></i></button>
+                <button className="btn btn-danger btn-sm px-3" onClick={handleBlock} disabled={selectedIds.length === 0} title="Block selected users" style={{ borderRadius: '2px' }}>Block</button>
+                <button className="btn btn-light btn-sm border" onClick={handleUnblock} disabled={selectedIds.length === 0} title="Unblock selected users" style={{ borderRadius: '2px' }}><i className="bi bi-unlock-fill text-success"></i></button>
+                <button className="btn btn-light btn-sm border" onClick={handleDelete} disabled={selectedIds.length === 0} title="Delete selected users" style={{ borderRadius: '2px' }}><i className="bi bi-trash-fill text-danger"></i></button>
+                
+                
+                <button className="btn btn-outline-warning btn-sm ms-auto" onClick={handleDeleteUnverified} title="Delete all unverified users" style={{ borderRadius: '2px' }}>
+                    <i className="bi bi-person-x-fill me-1"></i> Delete Unverified
+                </button>
+
                 {selectedIds.length > 0 && <span className="text-muted small ms-2">{selectedIds.length} selected</span>}
             </div>
 
@@ -116,7 +147,6 @@ const AdminPanel = () => {
                                     <td className="text-muted">{user.email}</td>
                                     <td className="text-muted">{user.last_login_time ? new Date(user.last_login_time).toLocaleString() : 'N/A'}</td>
                                     <td>
-                                        
                                         <span className={`badge px-2 py-1 fw-normal ${
                                             user.status === 'blocked' ? 'bg-danger-subtle text-danger' : 
                                             user.status === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
