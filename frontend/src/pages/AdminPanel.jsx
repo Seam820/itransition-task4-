@@ -116,7 +116,11 @@ const AdminPanel = () => {
                                     <td className="text-muted">{user.email}</td>
                                     <td className="text-muted">{user.last_login_time ? new Date(user.last_login_time).toLocaleString() : 'N/A'}</td>
                                     <td>
-                                        <span className={`badge px-2 py-1 fw-normal ${user.status === 'blocked' ? 'bg-danger-subtle text-danger' : user.status === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}`} style={{ borderRadius: '2px' }}>
+                                        
+                                        <span className={`badge px-2 py-1 fw-normal ${
+                                            user.status === 'blocked' ? 'bg-danger-subtle text-danger' : 
+                                            user.status === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
+                                        }`} style={{ borderRadius: '2px' }}>
                                             {user.status}
                                         </span>
                                     </td>
