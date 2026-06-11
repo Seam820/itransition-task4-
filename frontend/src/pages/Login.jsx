@@ -18,7 +18,11 @@ const Login = () => {
         setError('');
 
         try {
+<<<<<<< HEAD
             // ✅ ১. লাইভ রেন্ডার ব্যাকএন্ড এপিআই লিঙ্ক
+=======
+            
+>>>>>>> c1712b0 (Checklist Compliance Audit against)
             const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/login', formData);
             
             if (response.data.success) {

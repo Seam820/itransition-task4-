@@ -20,19 +20,18 @@ export const AuthProvider = ({ children }) => {
 
     
     useEffect(() => {
-        const interceptor = axios.interceptors.response.use(
-            (response) => response,
-            (error) => {
-                if (error.response && error.response.status === 401) {
-                    logout(); 
-                }
-                return Promise.reject(error);
+    const interceptor = axios.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                logout(); 
+                window.location.href = '/login'; // Forces immediate eviction to login
             }
-        );
-        
-        
-        return () => axios.interceptors.response.eject(interceptor);
-    }, []);
+            return Promise.reject(error);
+        }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+}, []);
 
     const login = (userData, userToken) => {
         setUser(userData);
