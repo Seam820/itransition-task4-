@@ -18,18 +18,14 @@ const Login = () => {
         setError('');
 
         try {
-<<<<<<< HEAD
-            // ✅ ১. লাইভ রেন্ডার ব্যাকএন্ড এপিআই লিঙ্ক
-=======
-            
->>>>>>> c1712b0 (Checklist Compliance Audit against)
-            const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/login', formData);
+            // ✅ আপডেট করা নতুন রেন্ডার ব্যাকএন্ড এপিআই লিঙ্ক
+            const response = await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/auth/login', formData);
             
             if (response.data.success) {
                 // AuthContext-এ ইউজার ও টোকেন সেভ করা
                 login(response.data.user, response.data.token);
                 
-                // ✅ ২. পরিবর্তন: '/admin' কেটে সরাসরি মূল লিঙ্কে ('/') নেভিগেট করা হলো
+                // মূল লিঙ্কে ('/') নেভিগেট করা
                 navigate('/');
             }
         } catch (err) {

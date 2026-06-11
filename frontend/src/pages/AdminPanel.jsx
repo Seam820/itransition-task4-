@@ -8,11 +8,10 @@ const AdminPanel = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
 
-   
+    // ১. সমস্ত ইউজার ফেচ করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
     const fetchUsers = async () => {
         try {
-            const response = await axios.get('https://itransition-backend-fsn3.onrender.com/api/users');
-            
+            const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users');
             
             const sortedUsers = response.data.sort((a, b) => {
                 return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
@@ -21,7 +20,6 @@ const AdminPanel = () => {
             setUsers(sortedUsers);
         } catch (err) {
             setError('Failed to fetch users or session expired.');
-            
             setTimeout(() => logout(), 2000);
         }
     };
@@ -47,10 +45,11 @@ const AdminPanel = () => {
         }
     };
 
+    // ২. ইউজার ব্লক করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
     const handleBlock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/block', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds });
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
@@ -59,10 +58,11 @@ const AdminPanel = () => {
         }
     };
 
+    // ৩. ইউজার আনব্লক করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
     const handleUnblock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/unblock', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds });
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
@@ -71,11 +71,12 @@ const AdminPanel = () => {
         }
     };
 
+    // ৪. ইউজার ডিলিট করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
     const handleDelete = async () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm('Are you sure you want to delete selected users?')) return;
         try {
-            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/delete', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds });
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
@@ -84,11 +85,11 @@ const AdminPanel = () => {
         }
     };
 
-   
+    // ৫. আনভেরিফাইড ইউজার ডিলিট করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
     const handleDeleteUnverified = async () => {
         if (!window.confirm('Are you sure you want to delete all unverified users?')) return;
         try {
-            await axios.post('https://itransition-backend-fsn3.onrender.com/api/users/delete-unverified');
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete-unverified');
             fetchUsers();
         } catch (err) {
             setError('Action failed.');
@@ -107,12 +108,10 @@ const AdminPanel = () => {
 
             {error && <div className="alert alert-danger py-2 small">{error}</div>}
 
-            
             <div className="bg-white p-2 border mb-3 d-flex align-items-center gap-2 shadow-sm" style={{ borderRadius: '4px' }}>
                 <button className="btn btn-danger btn-sm px-3" onClick={handleBlock} disabled={selectedIds.length === 0} title="Block selected users" style={{ borderRadius: '2px' }}>Block</button>
                 <button className="btn btn-light btn-sm border" onClick={handleUnblock} disabled={selectedIds.length === 0} title="Unblock selected users" style={{ borderRadius: '2px' }}><i className="bi bi-unlock-fill text-success"></i></button>
                 <button className="btn btn-light btn-sm border" onClick={handleDelete} disabled={selectedIds.length === 0} title="Delete selected users" style={{ borderRadius: '2px' }}><i className="bi bi-trash-fill text-danger"></i></button>
-                
                 
                 <button className="btn btn-outline-warning btn-sm ms-auto" onClick={handleDeleteUnverified} title="Delete all unverified users" style={{ borderRadius: '2px' }}>
                     <i className="bi bi-person-x-fill me-1"></i> Delete Unverified

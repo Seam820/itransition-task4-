@@ -18,7 +18,8 @@ const Register = () => {
         setSuccess('');
 
         try {
-            const response = await axios.post('https://itransition-backend-fsn3.onrender.com/api/auth/register', formData);
+            // ✅ আপডেট করা নতুন রেন্ডার ব্যাকএন্ড এপিআই লিঙ্ক
+            const response = await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/auth/register', formData);
             
             if (response.data.success) {
                 setSuccess(response.data.message);
