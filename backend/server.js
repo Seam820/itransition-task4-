@@ -57,14 +57,33 @@ app.post('/api/auth/register', async (req, res) => {
 
         const query = `
             INSERT INTO users (name, email, password, status) 
-            VALUES (?, ?, ?, 'active')
+            VALUES (?, ?, ?, 'unverified')
         `;
         
-        await db.query(query, [name, email, hashedPassword]);
+        const [result] = await db.query(query, [name, email, hashedPassword]);
+
+        // ✅ Generate a verification token valid for 1 hour
+        const verificationToken = jwt.sign(
+            { id: result.insertId, email: email }, 
+            process.env.JWT_SECRET || 'secretkey', 
+            { expiresIn: '1h' }
+        );
+
+        // ✅ Mock asynchronous email sending (logs to terminal)
+        const verificationLink = `${req.protocol}://${req.get('host')}/api/auth/verify/${verificationToken}`;
+        
+        setTimeout(() => {
+            console.log('\n=======================================');
+            console.log(`✉️ MOCK EMAIL SENT TO: ${email}`);
+            console.log(`Subject: Verify Your Account`);
+            console.log(`Click this link to activate your account:`);
+            console.log(verificationLink);
+            console.log('=======================================\n');
+        }, 1000); // 1 second delay to simulate async email sending
 
         return res.status(201).json({ 
             success: true, 
-            message: "Registration successful!" 
+            message: "Registration successful! Please check your email to verify your account." 
         });
 
     } catch (error) {
@@ -99,10 +118,10 @@ app.post('/api/auth/login', async (req, res) => {
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ error: "Invalid email or password." });
+        
+        // ✅ NEW: Prevent unverified users from logging in
+        if (currentStatus === 'unverified') {
+            return res.status(403).json({ error: "Please check your email and verify your account before logging in." });
         }
 
         // লাস্ট লগইন টাইম আপডেট
@@ -194,6 +213,28 @@ app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req,
         return res.json({ success: true, message: "All unverified users deleted successfully." });
     } catch (error) {
         return res.status(500).json({ error: "Internal server error." });
+    }
+});
+
+// 📧 ইমেইল ভেরিফিকেশন রুট
+app.get('/api/auth/verify/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        
+        // Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
+        
+        // Update user status to active
+        await db.query(`UPDATE users SET status = 'active' WHERE id = ?`, [decoded.id]);
+        
+        // Redirect the user to your frontend login page
+        
+        const frontendUrl = process.env.FRONTEND_URL || 'https://itransition-frontend-8797.onrender.com'; 
+        
+        res.redirect(`${frontendUrl}/login`);
+    } catch (error) {
+        console.error("Verification Error:", error);
+        return res.status(400).send("<h1>Verification Link Invalid or Expired</h1><p>Please register again or contact support.</p>");
     }
 });
 
