@@ -24,8 +24,14 @@ export const AuthProvider = ({ children }) => {
         (response) => response,
         (error) => {
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-                logout(); 
-                window.location.href = '/'; // Forces immediate eviction to login
+                // Check if the error came from the login request
+                const isLoginRequest = error.config && error.config.url.includes('/api/auth/login');
+                
+                // Only force logout/redirect if it is NOT a login request
+                if (!isLoginRequest) {
+                    logout(); 
+                    window.location.href = '/'; 
+                }
             }
             return Promise.reject(error);
         }
