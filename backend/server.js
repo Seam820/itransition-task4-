@@ -27,13 +27,12 @@ const authenticateAndCheckStatus = async (req, res, next) => {
         // ডাটাবেজ থেকে ইউজারের বর্তমান স্ট্যাটাস ও অস্তিত্ব চেক করা
         const [rows] = await db.query('SELECT id, status FROM users WHERE id = ?', [req.user.id]);
         
-        // টেস্ট ১ ও টেস্ট ২ পাস করানোর লজিক: ইউজার যদি ডিলিট হয়ে যায় বা স্ট্যাটাস 'blocked' হয়
         if (rows.length === 0) {
             return res.status(403).json({ error: "Your account has been deleted. Access denied." });
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status || 'active').toLowerCase();
+        const currentStatus = String(user.status).toLowerCase();
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
@@ -44,7 +43,7 @@ const authenticateAndCheckStatus = async (req, res, next) => {
     }
 };
 
-// 📝 টেস্ট ৩ পাস করার রুট: ইউনিক ইনডেক্স ডুপ্লিকেট এন্ট্রি হ্যান্ডেলিং
+// 📝 রেজিস্ট্রেশন রুট
 app.post('/api/auth/register', async (req, res) => {
     const { name, email, password } = req.body;
 
@@ -79,7 +78,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (কঠোরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (কঠোরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন এবং স্পষ্ট এরর মেসেজ)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -94,8 +93,9 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status || 'active').toLowerCase();
+        const currentStatus = String(user.status).toLowerCase();
 
+        // ইউজার যদি ব্লকড থাকে তবে লগইন আটকে ৪MD৩ এরর মেসেজ রিটার্ন করা
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
@@ -126,7 +126,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 📊 ইউজার লিস্ট রুট (৩য় রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
+// 📊 ইউজার লিস্ট রুট
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
@@ -136,7 +136,7 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ব্লক ইউজার রুট (সিঙ্গেল কোট ব্যবহার করে কলাম টাইপো বাগ ফিক্সড)
+// 🚫 ব্লক ইউজার রুট
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -146,12 +146,10 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     try {
         const placeholders = userIds.map(() => '?').join(',');
         const sql = `UPDATE users SET status = 'blocked' WHERE id IN (${placeholders})`;
-        
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
-        console.error("Block API Error:", error);
-        return res.status(500).json({ error: error.message || "Internal server error." });
+        return res.status(500).json({ error: "Internal server error." });
     }
 });
 
@@ -165,11 +163,10 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     try {
         const placeholders = userIds.map(() => '?').join(',');
         const sql = `UPDATE users SET status = 'active' WHERE id IN (${placeholders})`;
-        
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
-        return res.status(500).json({ error: error.message || "Internal server error." });
+        return res.status(500).json({ error: "Internal server error." });
     }
 });
 
@@ -183,11 +180,10 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     try {
         const placeholders = userIds.map(() => '?').join(',');
         const sql = `DELETE FROM users WHERE id IN (${placeholders})`;
-        
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users deleted successfully." });
     } catch (error) {
-        return res.status(500).json({ error: error.message || "Internal server error." });
+        return res.status(500).json({ error: "Internal server error." });
     }
 });
 
