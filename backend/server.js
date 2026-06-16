@@ -24,7 +24,7 @@ const authenticateAndCheckStatus = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
         req.user = decoded;
 
-        // ডাটাবেজ থেকে ইউজারের বর্তমান স্ট্যাটাস চেক করা
+        // ডাটাবেজ থেকে ইউজারের বর্তমান স্ট্যাটাস ও অস্তিত্ব চেক করা
         const [rows] = await db.query('SELECT id, status FROM users WHERE id = ?', [req.user.id]);
         
         // টেস্ট ১ ও টেস্ট ২ পাস করানোর লজিক: ইউজার যদি ডিলিট হয়ে যায় বা স্ট্যাটাস 'blocked' হয়
@@ -33,7 +33,8 @@ const authenticateAndCheckStatus = async (req, res, next) => {
         }
 
         const user = rows[0];
-        if (user.status === 'blocked' || user.status === 'Blocked') {
+        const currentStatus = String(user.status).toLowerCase();
+        if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
 
@@ -55,7 +56,7 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // আইট্রানজিশন রিকোয়ারমেন্ট অনুযায়ী ডিফল্ট স্ট্যাটাস 'active' রাখা নিরাপদ বা 'unverified' হলেও লগইন রেস্ট্রিকশন টাইট করা
+        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো যাতে লগইন কন্ডিশন নিখুঁত কাজ করে
         const query = `
             INSERT INTO users (name, email, password, status) 
             VALUES (?, ?, ?, 'active')
@@ -80,7 +81,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (স্ট্রিক্ট ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (কробнее ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -95,9 +96,10 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const user = rows[0];
+        const currentStatus = String(user.status).toLowerCase();
 
-        // 🔴 ফিক্স: ইউজার যদি ব্লকড থাকে তবে লগইন আটকে ৪০৩ এরর রেসপন্স দেওয়া
-        if (user.status === 'blocked' || user.status === 'Blocked') {
+        // 🔴 ফিক্স: ইউজার যদি ব্লকড থাকে বা একটিভ না থাকে তবে লগইন আটকে ৪০৩ এরর রেসপন্স দেওয়া
+        if (currentStatus === 'blocked' || user.status !== 'active') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
 
@@ -106,7 +108,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
-        // লাস্ট লগইন টাইম আপডেট (৩য় রিকোয়ারমেন্টের সর্টিং এর জন্য)
+        // লাস্ট লগইন টাইম আপডেট
         await db.query('UPDATE users SET last_login_time = NOW() WHERE id = ?', [user.id]);
 
         const token = jwt.sign(

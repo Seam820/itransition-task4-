@@ -3,21 +3,23 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 const AdminPanel = () => {
-    const { token, logout } = useAuth(); // ✅ টোকেন এক্সট্রাক্ট করা হলো
+    const { token, logout } = useAuth(); // AuthContext থেকে টোকেন নেওয়া হলো
     const [users, setUsers] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
 
-    // হেডার কনফিগারেশন অবজেক্ট
+    // এক্সিওস রিকোয়েস্টের জন্য হেডার কনফিগারেশন
     const config = {
         headers: { Authorization: `Bearer ${token}` }
     };
 
     // ১. সমস্ত ইউজার ফেচ করার ফাংশন
     const fetchUsers = async () => {
+        if (!token) return;
         try {
             const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
             
+            // লাস্ট লগইন টাইম অনুযায়ী ডিসেন্ডিং (Descending) সর্টিং
             const sortedUsers = response.data.sort((a, b) => {
                 return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
             });
@@ -25,12 +27,15 @@ const AdminPanel = () => {
             setUsers(sortedUsers);
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to fetch users or session expired.');
+            // সেশন এক্সপায়ার বা ব্লকড হলে ২ সেকেন্ড পর সাকসেসফুলি লগআউট হবে
             setTimeout(() => logout(), 2000);
         }
     };
 
     useEffect(() => {
-        if (token) fetchUsers();
+        if (token) {
+            fetchUsers();
+        }
     }, [token]);
 
     const handleSelectAll = (e) => {
@@ -56,10 +61,9 @@ const AdminPanel = () => {
         try {
             await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
             setSelectedIds([]);
-            fetchUsers();
+            await fetchUsers(); // ডাটা রিফ্রেশ
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
-            setTimeout(() => logout(), 2000); 
         }
     };
 
@@ -69,24 +73,22 @@ const AdminPanel = () => {
         try {
             await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
             setSelectedIds([]);
-            fetchUsers();
+            await fetchUsers(); // ডাটা রিফ্রেশ
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
-            setTimeout(() => logout(), 2000);
         }
     };
 
-    // ৪. ইউজার ডিলিট করার ফাংশন
+    // ৪. ইউজার ডিলিট করার ফাংশন (রিডাইরেক্ট বাগ ফিক্সড)
     const handleDelete = async () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm('Are you sure you want to delete selected users?')) return;
         try {
             await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
             setSelectedIds([]);
-            fetchUsers();
+            await fetchUsers(); // ডাটা রিফ্রেশ
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
-            setTimeout(() => logout(), 2000);
         }
     };
 
@@ -95,10 +97,9 @@ const AdminPanel = () => {
         if (!window.confirm('Are you sure you want to delete all unverified users?')) return;
         try {
             await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete-unverified', {}, config);
-            fetchUsers();
+            await fetchUsers(); // ডাটা রিফ্রেশ
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
-            setTimeout(() => logout(), 2000);
         }
     };
 
@@ -152,8 +153,8 @@ const AdminPanel = () => {
                                     <td className="text-muted">{user.last_login_time ? new Date(user.last_login_time).toLocaleString() : 'N/A'}</td>
                                     <td>
                                         <span className={`badge px-2 py-1 fw-normal ${
-                                            user.status === 'blocked' ? 'bg-danger-subtle text-danger' : 
-                                            user.status === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
+                                            String(user.status).toLowerCase() === 'blocked' ? 'bg-danger-subtle text-danger' : 
+                                            String(user.status).toLowerCase() === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
                                         }`} style={{ borderRadius: '2px' }}>
                                             {user.status}
                                         </span>
