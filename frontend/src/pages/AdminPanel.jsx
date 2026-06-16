@@ -1,25 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from 'react-serif'; // অথবা আপনার সাধারণ 'axios' রাখুন
+import axiosActual from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 const AdminPanel = () => {
-    const { token, logout } = useAuth(); // AuthContext থেকে টোকেন নেওয়া হলো
+    const { token, logout } = useAuth(); 
     const [users, setUsers] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
 
-    // এক্সিওস রিকোয়েস্টের জন্য হেডার কনফিগারেশন
     const config = {
         headers: { Authorization: `Bearer ${token}` }
     };
 
-    // ১. সমস্ত ইউজার ফেচ করার ফাংশন
     const fetchUsers = async () => {
         if (!token) return;
         try {
-            const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
+            const response = await axiosActual.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
             
-            // লাস্ট লগইন টাইম অনুযায়ী ডিসেন্ডিং (Descending) সর্টিং
             const sortedUsers = response.data.sort((a, b) => {
                 return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
             });
@@ -29,8 +27,7 @@ const AdminPanel = () => {
             console.error("Fetch users error:", err);
             setError(err.response?.data?.error || 'Failed to fetch users.');
             
-            // ⚠️ ফিক্স: শুধুমাত্র তখনই লগআউট করাবে যদি টোকেন ইনভ্যালিড (401) বা ইউজার নিজে ব্লকড (403) হয়।
-            // সাধারণ কোনো এররের জন্য হুট করে লগআউট করিয়ে বের করে দেবে না।
+            // ✅ ফিক্স: হুটহাট লগআউট বন্ধ। শুধুমাত্র ৪MD১ (Unauthorized) বা ৪MD৩ (Blocked/Deleted) হলেই বের করবে।
             if (err.response?.status === 401 || err.response?.status === 403) {
                 setTimeout(() => {
                     if (logout) logout();
@@ -45,7 +42,6 @@ const AdminPanel = () => {
         }
     }, [token]);
 
-    // চেকবক্স সিলেক্ট করার লজিক
     const handleSelectUser = (id) => {
         if (selectedIds.includes(id)) {
             setSelectedIds(selectedIds.filter(userId => userId !== id));
@@ -62,31 +58,26 @@ const AdminPanel = () => {
         }
     };
 
-    // 🚫 ব্লক ফাংশন (ফিক্সড)
     const handleBlock = async () => {
         if (selectedIds.length === 0) return;
         try {
             setError('');
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
+            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
             setSelectedIds([]);
-            await fetchUsers(); // ব্লক করার পর সফলভাবে লিস্ট আপডেট হবে
+            await fetchUsers();
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
-            // যদি নিজে নিজেকে ব্লক করে ফেলে তবেই কেবল কিক আউট করবে
             if (err.response?.status === 403) {
-                setTimeout(() => {
-                    if (logout) logout();
-                }, 1500);
+                setTimeout(() => { if (logout) logout(); }, 1500);
             }
         }
     };
 
-    // 🔓 আনব্লক ফাংশন
     const handleUnblock = async () => {
         if (selectedIds.length === 0) return;
         try {
             setError('');
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
+            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
             setSelectedIds([]);
             await fetchUsers();
         } catch (err) {
@@ -94,21 +85,18 @@ const AdminPanel = () => {
         }
     };
 
-    // 🗑️ ডিলিট ফাংশন
     const handleDelete = async () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm("Are you sure you want to delete selected users?")) return;
         try {
             setError('');
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
+            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
             setSelectedIds([]);
             await fetchUsers();
         } catch (err) {
             setError(err.response?.data?.error || 'Action failed.');
             if (err.response?.status === 403) {
-                setTimeout(() => {
-                    if (logout) logout();
-                }, 1500);
+                setTimeout(() => { if (logout) logout(); }, 1500);
             }
         }
     };
@@ -124,20 +112,18 @@ const AdminPanel = () => {
 
             {error && <div className="alert alert-danger py-2 small" role="alert">{error}</div>}
 
-            {/* টুলবার */}
             <div className="p-3 bg-white border border-bottom-0 d-flex gap-2" style={{ borderRadius: '4px 4px 0 0' }}>
                 <button className="btn btn-danger btn-sm d-flex align-items-center gap-1" onClick={handleBlock} disabled={selectedIds.length === 0} style={{ borderRadius: '2px' }}>
-                    <i className="bi bi-lock-fill"></i> Block
+                    Block
                 </button>
                 <button className="btn btn-light btn-sm border d-flex align-items-center gap-1 text-secondary" onClick={handleUnblock} disabled={selectedIds.length === 0} style={{ borderRadius: '2px' }}>
-                    <i className="bi bi-unlock-fill"></i> Unblock
+                    Unblock
                 </button>
                 <button className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1" onClick={handleDelete} disabled={selectedIds.length === 0} style={{ borderRadius: '2px' }}>
-                    <i className="bi bi-trash-fill"></i> Delete
+                    Delete
                 </button>
             </div>
 
-            {/* ইউজার টেবিল */}
             <div className="table-responsive border" style={{ borderRadius: '0 0 4px 4px', backgroundColor: '#fff' }}>
                 <table className="table table-hover align-middle mb-0 small">
                     <thead className="table-light text-muted">
@@ -167,8 +153,7 @@ const AdminPanel = () => {
                                     <td className="text-muted">{user.last_login_time ? new Date(user.last_login_time).toLocaleString() : 'N/A'}</td>
                                     <td>
                                         <span className={`badge px-2 py-1 fw-normal ${
-                                            String(user.status).toLowerCase() === 'blocked' ? 'bg-danger-subtle text-danger' : 
-                                            String(user.status).toLowerCase() === 'active' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'
+                                            String(user.status).toLowerCase() === 'blocked' ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'
                                         }`} style={{ borderRadius: '2px' }}>
                                             {user.status}
                                         </span>
