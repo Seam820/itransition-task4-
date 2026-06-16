@@ -3,15 +3,20 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 const AdminPanel = () => {
-    const { logout } = useAuth();
+    const { token, logout } = useAuth(); // ✅ টোকেন এক্সট্রাক্ট করা হলো
     const [users, setUsers] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
     const [error, setError] = useState('');
 
-    // ১. সমস্ত ইউজার ফেচ করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
+    // হেডার কনফিগারেশন অবজেক্ট
+    const config = {
+        headers: { Authorization: `Bearer ${token}` }
+    };
+
+    // ১. সমস্ত ইউজার ফেচ করার ফাংশন
     const fetchUsers = async () => {
         try {
-            const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users');
+            const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
             
             const sortedUsers = response.data.sort((a, b) => {
                 return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
@@ -19,14 +24,14 @@ const AdminPanel = () => {
             
             setUsers(sortedUsers);
         } catch (err) {
-            setError('Failed to fetch users or session expired.');
+            setError(err.response?.data?.error || 'Failed to fetch users or session expired.');
             setTimeout(() => logout(), 2000);
         }
     };
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        if (token) fetchUsers();
+    }, [token]);
 
     const handleSelectAll = (e) => {
         if (e.target.checked) {
@@ -45,54 +50,54 @@ const AdminPanel = () => {
         }
     };
 
-    // ২. ইউজার ব্লক করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
+    // ২. ইউজার ব্লক করার ফাংশন
     const handleBlock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
-            setError('Action failed. You might be blocked or unauthorized.');
+            setError(err.response?.data?.error || 'Action failed.');
             setTimeout(() => logout(), 2000); 
         }
     };
 
-    // ৩. ইউজার আনব্লক করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
+    // ৩. ইউজার আনব্লক করার ফাংশন
     const handleUnblock = async () => {
         if (selectedIds.length === 0) return;
         try {
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
-            setError('Action failed.');
+            setError(err.response?.data?.error || 'Action failed.');
             setTimeout(() => logout(), 2000);
         }
     };
 
-    // ৪. ইউজার ডিলিট করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
+    // ৪. ইউজার ডিলিট করার ফাংশন
     const handleDelete = async () => {
         if (selectedIds.length === 0) return;
         if (!window.confirm('Are you sure you want to delete selected users?')) return;
         try {
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds });
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
             setSelectedIds([]);
             fetchUsers();
         } catch (err) {
-            setError('Action failed.');
+            setError(err.response?.data?.error || 'Action failed.');
             setTimeout(() => logout(), 2000);
         }
     };
 
-    // ৫. আনভেরিফাইড ইউজার ডিলিট করার ফাংশন (নতুন ইউআরএল যুক্ত করা হয়েছে)
+    // ৫. আনভেরিফাইড ইউজার ডিলিট করার ফাংশন
     const handleDeleteUnverified = async () => {
         if (!window.confirm('Are you sure you want to delete all unverified users?')) return;
         try {
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete-unverified');
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete-unverified', {}, config);
             fetchUsers();
         } catch (err) {
-            setError('Action failed.');
+            setError(err.response?.data?.error || 'Action failed.');
             setTimeout(() => logout(), 2000);
         }
     };
