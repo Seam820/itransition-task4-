@@ -33,7 +33,7 @@ const authenticateAndCheckStatus = async (req, res, next) => {
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status || user.Status || 'active').toLowerCase();
+        const currentStatus = String(user.status || 'active').toLowerCase();
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
@@ -56,7 +56,6 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো
         const query = `
             INSERT INTO users (name, email, password, status) 
             VALUES (?, ?, ?, 'active')
@@ -80,7 +79,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (করেরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (কঠোরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -95,7 +94,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status || user.Status || 'active').toLowerCase();
+        const currentStatus = String(user.status || 'active').toLowerCase();
 
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
@@ -118,7 +117,7 @@ app.post('/api/auth/login', async (req, res) => {
         return res.json({
             success: true,
             token,
-            user: { id: user.id, name: user.name, email: user.email, status: user.status || user.Status }
+            user: { id: user.id, name: user.name, email: user.email, status: user.status }
         });
 
     } catch (error) {
@@ -137,25 +136,22 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ব্লক ইউজার রুট (ক্র্যাশ প্রুফ মাল্টিপল প্লেসহোল্ডার স্ট্রাকচার)
+// 🚫 ব্লক ইউজার রুট (সিঙ্গেল কোট ব্যবহার করে কলাম টাইপো বাগ ফিক্সড)
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
-    let { userIds } = req.body;
+    const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
         return res.status(400).json({ error: "Invalid data." });
     }
 
     try {
-        // mysql2 ড্রাইভারের ইন-লাইন অ্যারে প্রসেসিং ইস্যু এড়াতে ডাইনামিক প্লেসহোল্ডার জেনারেশন
         const placeholders = userIds.map(() => '?').join(',');
-        
-        // বড় হাতের এবং ছোট হাতের উভয় প্রকার কলামের সম্ভাব্য এরর এড়াতে কুয়েরি অপ্টিমাইজেশন
-        const sql = `UPDATE users SET status = "blocked", Status = "blocked" WHERE id IN (${placeholders})`;
+        // ফিক্স: 'blocked' কে সিঙ্গেল কোটের মধ্যে রাখা হয়েছে যেন তা কলাম না ভেবে সরাসরি টেক্সট ভ্যালু হিসেবে অ্যাসাইন হয়
+        const sql = `UPDATE users SET status = 'blocked' WHERE id IN (${placeholders})`;
         
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
-        console.error("Block API Error Detailed:", error);
-        // ফ্রন্টঅ্যান্ডের সুবিধার্থে ইন্টারনাল কুয়েরি মেসেজ পাস করা হলো
+        console.error("Block API Error:", error);
         return res.status(500).json({ error: error.message || "Internal server error." });
     }
 });
@@ -169,7 +165,7 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
 
     try {
         const placeholders = userIds.map(() => '?').join(',');
-        const sql = `UPDATE users SET status = "active", Status = "active" WHERE id IN (${placeholders})`;
+        const sql = `UPDATE users SET status = 'active' WHERE id IN (${placeholders})`;
         
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
@@ -199,7 +195,7 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
 // 🧹 আনভেরিফাইড ইউজার ডিলিট রুট
 app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req, res) => {
     try {
-        await db.query('DELETE FROM users WHERE status = "unverified" OR Status = "unverified"');
+        await db.query("DELETE FROM users WHERE status = 'unverified'");
         return res.json({ success: true, message: "All unverified users deleted successfully." });
     } catch (error) {
         return res.status(500).json({ error: "Internal server error." });
