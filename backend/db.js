@@ -1,31 +1,30 @@
+import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-import mysql from 'mysql2/promise';
-
-const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: parseInt(process.env.DB_PORT) || 3306,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    ssl: {
-        rejectUnauthorized: false
-    }
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 10713,
+  ssl: {
+    rejectUnauthorized: false // Aiven ক্লাউড ডাটাবেজের জন্য এটি বাধ্যতামূলক
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-(async () => {
-    try {
-        const connection = await db.getConnection();
-        console.log('✅ Connected to Aiven Cloud MySQL successfully.');
-        connection.release();
-    } catch (error) {
-        console.error('❌ Cloud Database connection failed:', error.message);
-    }
-})();
+// কানেকশন টেস্ট করার জন্য লগ
+pool.getConnection()
+  .then(connection => {
+    console.log('✅ Cloud Database connected successfully!');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('❌ Cloud Database connection failed:', err.message);
+  });
 
-export default db;
+export default pool;
