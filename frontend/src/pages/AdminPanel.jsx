@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'react-serif'; // অথবা আপনার সাধারণ 'axios' রাখুন
-import axiosActual from 'axios';
+import axios from 'axios'; // ✅ ফিক্সড: শুধুমাত্র স্ট্যান্ডার্ড axios ইম্পোর্ট রাখা হয়েছে
 import { useAuth } from '../context/AuthContext';
 
 const AdminPanel = () => {
@@ -16,7 +15,7 @@ const AdminPanel = () => {
     const fetchUsers = async () => {
         if (!token) return;
         try {
-            const response = await axiosActual.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
+            const response = await axios.get('https://itransition-task4-backend-bey2.onrender.com/api/users', config);
             
             const sortedUsers = response.data.sort((a, b) => {
                 return new Date(b.last_login_time || 0) - new Date(a.last_login_time || 0);
@@ -62,7 +61,7 @@ const AdminPanel = () => {
         if (selectedIds.length === 0) return;
         try {
             setError('');
-            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
             setSelectedIds([]);
             await fetchUsers();
         } catch (err) {
@@ -77,7 +76,7 @@ const AdminPanel = () => {
         if (selectedIds.length === 0) return;
         try {
             setError('');
-            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/unblock', { userIds: selectedIds }, config);
             setSelectedIds([]);
             await fetchUsers();
         } catch (err) {
@@ -90,7 +89,7 @@ const AdminPanel = () => {
         if (!window.confirm("Are you sure you want to delete selected users?")) return;
         try {
             setError('');
-            await axiosActual.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
+            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/delete', { userIds: selectedIds }, config);
             setSelectedIds([]);
             await fetchUsers();
         } catch (err) {

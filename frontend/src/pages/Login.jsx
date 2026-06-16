@@ -14,9 +14,8 @@ const Login = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // ✅ ফিক্স: ফাংশনের নাম handleLogin থেকে handleSubmit করা হলো যেন ফর্মের সাথে ম্যাচ করে
     const handleSubmit = async (e) => {
-        e.preventDefault(); 
+        e.preventDefault(); // ⚠️ পেজ রিফ্রেশ আটকাবে যেন ব্লকড মেসেজ স্ক্রিনেই থাকে
         setError(""); 
         setLoading(true);
 
@@ -37,7 +36,7 @@ const Login = () => {
         } catch (err) {
             console.error("Login error details:", err);
             if (err.response && err.response.data && err.response.data.error) {
-                setError(err.response.data.error); 
+                setError(err.response.data.error); // 🚀 ব্যাকএন্ডের পাঠানো আসল মেসেজ স্ক্রিনে সেট হবে
             } else {
                 setError("Invalid email or password. Please try again.");
             }
