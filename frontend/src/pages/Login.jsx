@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'react-serif'; // অথবা আপনার প্রজেক্টের স্বাভাবিক axios ইমপোর্ট রাখুন
-import axiosActual from 'axios'; 
+import axios from 'axios'; // ✅ ফিক্সড: শুধুমাত্র স্ট্যান্ডার্ড axios ইম্পোর্ট রাখা হয়েছে
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false); // ✅ ফিক্স: লোডিং স্টেট যোগ করা হলো
+    const [loading, setLoading] = useState(false); // ✅ লোডিং স্টেট সচল রাখা হলো
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -16,40 +15,39 @@ const Login = () => {
     };
 
     const handleSubmit = async (e) => {
-        // ⚠️ এটি অত্যন্ত জরুরি! ফর্ম সাবমিট হলে পেজ রিলোড বা রিফ্রেশ হওয়া আটকাবে
+        // ⚠️ ফর্ম সাবমিট হলে পেজ রিলোড হওয়া আটকাবে
         e.preventDefault(); 
         
-        setError(""); // আগের কোনো এরর থাকলে তা পরিষ্কার করুন
+        setError(""); // আগের এরর পরিষ্কার করুন
         setLoading(true);
 
         try {
-            // ✅ ফিক্স: সরাসরি email, password এর বদলে formData থেকে পাঠানো হলো
-            const response = await axiosActual.post("https://itransition-task4-backend-bey2.onrender.com/api/auth/login", {
+            // ✅ ফিক্সড: formData থেকে ইমেইল ও পাসওয়ার্ড পাঠানো হচ্ছে
+            const response = await axios.post("https://itransition-task4-backend-bey2.onrender.com/api/auth/login", {
                 email: formData.email,
                 password: formData.password
             });
 
             if (response.data.success) {
-                // আপনার AuthContext এর লগইন মেথড বা টোকেন স্টোরেজ রান করুন
                 if (login) {
                     login(response.data.token, response.data.user);
                 } else {
                     localStorage.setItem("token", response.data.token);
                 }
-                // সফল হলে ড্যাশবোর্ডে নিয়ে যাবে
+                // সফল হলে ড্যাশবোর্ডে রিডাইরেক্ট করবে
                 navigate('/');
             }
         } catch (err) {
             console.error("Login error details:", err);
             
-            // 🚀 ব্যাকএন্ডের পাঠানো আসল এরর মেসেজটি স্টেটে সেট করা হচ্ছে যা স্ক্রিনে আটকে থাকবে
+            // 🚀 ব্যাকএন্ডের পাঠানো আসল ব্লকড এরর মেসেজটি স্টেটে সেট করা হচ্ছে (যা স্ক্রিনে আটকে থাকবে)
             if (err.response && err.response.data && err.response.data.error) {
                 setError(err.response.data.error); // এখানে "Your account is blocked. Access denied." সেট হবে
             } else {
                 setError("Invalid email or password. Please try again.");
             }
         } finally {
-            setLoading(false); // লোডিং বন্ধ হবে কিন্তু এরর মেসেজ স্ক্রিনেই রয়ে যাবে
+            setLoading(false); // লোডিং বন্ধ হবে কিন্তু এরর মেসেজ স্ক্রিন থেকে সরবে না
         }
     };
 
