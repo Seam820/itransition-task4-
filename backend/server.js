@@ -33,7 +33,7 @@ const authenticateAndCheckStatus = async (req, res, next) => {
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status).toLowerCase();
+        const currentStatus = String(user.status || user.Status || 'active').toLowerCase();
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
@@ -70,7 +70,7 @@ app.post('/api/auth/register', async (req, res) => {
         });
 
     } catch (error) {
-        if (error.errno === 1062 || error.code === 'ER_DUP_ENTRY' || error.message.includes('idx_users_email_unique')) {
+        if (error.errno === 1062 || error.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ 
                 error: "This email address is already registered." 
             });
@@ -80,7 +80,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (কঠোরভাবের ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (করেরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -95,7 +95,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const user = rows[0];
-        const currentStatus = String(user.status).toLowerCase();
+        const currentStatus = String(user.status || user.Status || 'active').toLowerCase();
 
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
@@ -118,7 +118,7 @@ app.post('/api/auth/login', async (req, res) => {
         return res.json({
             success: true,
             token,
-            user: { id: user.id, name: user.name, email: user.email, status: user.status }
+            user: { id: user.id, name: user.name, email: user.email, status: user.status || user.Status }
         });
 
     } catch (error) {
@@ -127,7 +127,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট)
+// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
@@ -137,27 +137,30 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ব্লক ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
+// 🚫 ব্লক ইউজার রুট (ক্র্যাশ প্রুফ মাল্টিপল প্লেসহোল্ডার স্ট্রাকচার)
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
-    const { userIds } = req.body;
+    let { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
         return res.status(400).json({ error: "Invalid data." });
     }
 
     try {
-        // ডাইনামিক প্লেসহোল্ডার তৈরি (যেমন: [1, 2] রূপান্তরিত হবে ?, ? তে)
+        // mysql2 ড্রাইভারের ইন-লাইন অ্যারে প্রসেসিং ইস্যু এড়াতে ডাইনামিক প্লেসহোল্ডার জেনারেশন
         const placeholders = userIds.map(() => '?').join(',');
-        const sql = `UPDATE users SET status = "blocked" WHERE id IN (${placeholders})`;
+        
+        // বড় হাতের এবং ছোট হাতের উভয় প্রকার কলামের সম্ভাব্য এরর এড়াতে কুয়েরি অপ্টিমাইজেশন
+        const sql = `UPDATE users SET status = "blocked", Status = "blocked" WHERE id IN (${placeholders})`;
         
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
-        console.error("Block API Error:", error);
-        return res.status(500).json({ error: "Internal server error." });
+        console.error("Block API Error Detailed:", error);
+        // ফ্রন্টঅ্যান্ডের সুবিধার্থে ইন্টারনাল কুয়েরি মেসেজ পাস করা হলো
+        return res.status(500).json({ error: error.message || "Internal server error." });
     }
 });
 
-// 🔓 আনব্লক ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
+// 🔓 আনব্লক ইউজার রুট
 app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -166,17 +169,16 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
 
     try {
         const placeholders = userIds.map(() => '?').join(',');
-        const sql = `UPDATE users SET status = "active" WHERE id IN (${placeholders})`;
+        const sql = `UPDATE users SET status = "active", Status = "active" WHERE id IN (${placeholders})`;
         
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
-        console.error("Unblock API Error:", error);
-        return res.status(500).json({ error: "Internal server error." });
+        return res.status(500).json({ error: error.message || "Internal server error." });
     }
 });
 
-// 🗑️ ডিলিট ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
+// 🗑️ ডিলিট ইউজার রুট
 app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -190,15 +192,14 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
         await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users deleted successfully." });
     } catch (error) {
-        console.error("Delete API Error:", error);
-        return res.status(500).json({ error: "Internal server error." });
+        return res.status(500).json({ error: error.message || "Internal server error." });
     }
 });
 
 // 🧹 আনভেরিফাইড ইউজার ডিলিট রুট
 app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req, res) => {
     try {
-        await db.query('DELETE FROM users WHERE status = "unverified"');
+        await db.query('DELETE FROM users WHERE status = "unverified" OR Status = "unverified"');
         return res.json({ success: true, message: "All unverified users deleted successfully." });
     } catch (error) {
         return res.status(500).json({ error: "Internal server error." });
