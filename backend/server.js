@@ -126,7 +126,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
+// 📊 ইউজার লিস্ট রুট (৩য় রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
@@ -145,7 +145,6 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
 
     try {
         const placeholders = userIds.map(() => '?').join(',');
-        // ফিক্স: 'blocked' কে সিঙ্গেল কোটের মধ্যে রাখা হয়েছে যেন তা কলাম না ভেবে সরাসরি টেক্সট ভ্যালু হিসেবে অ্যাসাইন হয়
         const sql = `UPDATE users SET status = 'blocked' WHERE id IN (${placeholders})`;
         
         await db.query(sql, userIds);

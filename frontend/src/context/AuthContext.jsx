@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
         (error) => {
             if (error.response && (error.response.status === 401 || error.response.status === 403)) {
                 logout(); 
-                window.location.href = '/login'; // Forces immediate eviction to login
+                window.location.href = '/'; // Forces immediate eviction to login
             }
             return Promise.reject(error);
         }
