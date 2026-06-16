@@ -56,7 +56,7 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো যাতে লগইন কন্ডিশন নিখুঁত কাজ করে
+        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো
         const query = `
             INSERT INTO users (name, email, password, status) 
             VALUES (?, ?, ?, 'active')
@@ -80,7 +80,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (কঠোরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (কঠোরভাবের ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -97,7 +97,6 @@ app.post('/api/auth/login', async (req, res) => {
         const user = rows[0];
         const currentStatus = String(user.status).toLowerCase();
 
-        // ফিক্স: ইউজার যদি ব্লকড থাকে তবে লগইন আটকে দেওয়া
         if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
@@ -128,7 +127,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
+// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট)
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
@@ -138,7 +137,7 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ব্লক ইউজার রুট (বাগ মুক্ত ও নিরাপদ স্ট্রাকচার)
+// 🚫 ব্লক ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -146,8 +145,11 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 
     try {
-        // mysql2 ড্রাইভার নিরাপদ উপায়ে প্লেসহোল্ডার হ্যান্ডেল করার জন্য ডাবল ব্র্যাকেট মুক্ত কুয়েরি
-        await db.query('UPDATE users SET status = "blocked" WHERE id IN (?)', [userIds]);
+        // ডাইনামিক প্লেসহোল্ডার তৈরি (যেমন: [1, 2] রূপান্তরিত হবে ?, ? তে)
+        const placeholders = userIds.map(() => '?').join(',');
+        const sql = `UPDATE users SET status = "blocked" WHERE id IN (${placeholders})`;
+        
+        await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
         console.error("Block API Error:", error);
@@ -155,7 +157,7 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🔓 আনব্লক ইউজার রুট
+// 🔓 আনব্লক ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
 app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -163,7 +165,10 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     }
 
     try {
-        await db.query('UPDATE users SET status = "active" WHERE id IN (?)', [userIds]);
+        const placeholders = userIds.map(() => '?').join(',');
+        const sql = `UPDATE users SET status = "active" WHERE id IN (${placeholders})`;
+        
+        await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
         console.error("Unblock API Error:", error);
@@ -171,7 +176,7 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🗑️ ডিলিট ইউজার রুট
+// 🗑️ ডিলিট ইউজার রুট (প্লেসহোল্ডার বাগ ১০০% ফিক্সড)
 app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -179,7 +184,10 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     }
 
     try {
-        await db.query('DELETE FROM users WHERE id IN (?)', [userIds]);
+        const placeholders = userIds.map(() => '?').join(',');
+        const sql = `DELETE FROM users WHERE id IN (${placeholders})`;
+        
+        await db.query(sql, userIds);
         return res.json({ success: true, message: "Selected users deleted successfully." });
     } catch (error) {
         console.error("Delete API Error:", error);
