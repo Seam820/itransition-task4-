@@ -27,7 +27,7 @@ const Login = () => {
 
             if (response.data.success) {
                 if (login) {
-                    login(response.data.token, response.data.user);
+                    login(response.data.user, response.data.token);
                 } else {
                     localStorage.setItem("token", response.data.token);
                 }
