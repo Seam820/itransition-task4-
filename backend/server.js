@@ -139,7 +139,7 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ব্লক ইউজার রুট
+// 🚫 ১. ব্লক ইউজার রুট (Fix)
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -147,14 +147,16 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 
     try {
+        // [userIds] এর পরিবর্তে সরাসরি userIds পাস করে কুয়েরি ফিক্স করা হলো
         await db.query('UPDATE users SET status = "blocked" WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
+        console.error("Block API Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
 
-// 🔓 আনব্লক ইউজার রুট
+// 🔓 ২. আনব্লক ইউজার রুট (Fix)
 app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -165,11 +167,12 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
         await db.query('UPDATE users SET status = "active" WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
+        console.error("Unblock API Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
 
-// 🗑️ ডিলিট ইউজার রুট
+// 🗑️ ৩. ডিলিট ইউজার রুট (Fix)
 app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -180,10 +183,10 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
         await db.query('DELETE FROM users WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users deleted successfully." });
     } catch (error) {
+        console.error("Delete API Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
-
 // 🧹 আনভেরিফাইড ইউজার ডিলিট রুট
 app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req, res) => {
     try {

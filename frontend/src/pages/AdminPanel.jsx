@@ -57,15 +57,21 @@ const AdminPanel = () => {
 
     // ২. ইউজার ব্লক করার ফাংশন
     const handleBlock = async () => {
-        if (selectedIds.length === 0) return;
-        try {
-            await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
-            setSelectedIds([]);
-            await fetchUsers(); // ডাটা রিফ্রেশ
-        } catch (err) {
-            setError(err.response?.data?.error || 'Action failed.');
-        }
-    };
+    if (selectedIds.length === 0) return;
+    try {
+        // ১. ব্যাকএন্ডে ব্লক রিকোয়েস্ট পাঠানো
+        await axios.post('https://itransition-task4-backend-bey2.onrender.com/api/users/block', { userIds: selectedIds }, config);
+        
+        // ২. রিকোয়ারমেন্ট টেস্ট ১: ইউজার যদি নিজেকেই ব্লক করা লিস্টে সিলেক্ট করে থাকে
+        // (ধরে নিচ্ছি আপনার AuthContext বা ইউজার অবজেক্টে ইউজারের নিজের আইডি বা ইমেইল ট্র্যাক করা আছে, অথবা সেশন ফেচ করলেই মিডলওয়্যার তাকে কিক আউট করবে)
+        
+        setSelectedIds([]);
+        await fetchUsers(); // এটি কল হওয়া মাত্রই মিডলওয়্যার 403 ছুড়ে মারবে এবং আপনাকে লগআউট করাবে
+    } catch (err) {
+        // ব্যাকএন্ড মিডলওয়্যার যদি ব্লকড স্ট্যাটাস পেয়ে অলরেডি ৪MD৩ এরর দেয়, তবে ইন্টারসেপ্টর এমনিতেই লগআউট করাবে
+        setError(err.response?.data?.error || 'Action failed.');
+    }
+};
 
     // ৩. ইউজার আনব্লক করার ফাংশন
     const handleUnblock = async () => {
