@@ -6,52 +6,81 @@ import db from './db.js';
 
 const app = express();
 
-
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
+// 🔒 ৫ম রিকোয়ারমেন্ট মিডলওয়্যার: প্রতিটা রিকোয়েস্টের আগে ইউজার এক্সিস্টেন্স ও স্ট্যাটাস চেক
+const authenticateAndCheckStatus = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Access denied. No token provided." });
+    }
 
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretkey');
+        req.user = decoded;
+
+        // ডাটাবেজ থেকে ইউজারের বর্তমান স্ট্যাটাস চেক করা
+        const [rows] = await db.query('SELECT id, status FROM users WHERE id = ?', [req.user.id]);
+        
+        // টেস্ট ১ ও টেস্ট ২ পাস করানোর লজিক: ইউজার যদি ডিলিট হয়ে যায় বা স্ট্যাটাস 'blocked' হয়
+        if (rows.length === 0) {
+            return res.status(403).json({ error: "Your account has been deleted. Access denied." });
+        }
+
+        const user = rows[0];
+        if (user.status === 'blocked' || user.status === 'Blocked') {
+            return res.status(403).json({ error: "Your account is blocked. Access denied." });
+        }
+
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: "Invalid or expired token." });
+    }
+};
+
+// 📝 টেস্ট ৩ পাস করার রুট: ইউনিক ইনডেক্স ডুপ্লিকেট এন্ট্রি হ্যান্ডেলিং
 app.post('/api/auth/register', async (req, res) => {
     const { name, email, password } = req.body;
 
-    
     if (!name || !email || !password) {
         return res.status(400).json({ error: "All fields are required." });
     }
 
     try {
-        
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-
+        // আইট্রানজিশন রিকোয়ারমেন্ট অনুযায়ী ডিফল্ট স্ট্যাটাস 'active' রাখা নিরাপদ বা 'unverified' হলেও লগইন রেস্ট্রিকশন টাইট করা
         const query = `
             INSERT INTO users (name, email, password, status) 
-            VALUES (?, ?, ?, 'unverified')
+            VALUES (?, ?, ?, 'active')
         `;
         
         await db.query(query, [name, email, hashedPassword]);
 
-       
         return res.status(201).json({ 
             success: true, 
-            message: "Registration successful! (Asynchronous confirmation email triggered)." 
+            message: "Registration successful!" 
         });
 
     } catch (error) {
-        if (error.errno === 1062 || error.code === 'ER_DUP_ENTRY') {
+        // ডুপ্লিকেট ইমেইল চেক (idx_users_email_unique ইনডেক্সের এরর ক্যাচ করা)
+        if (error.errno === 1062 || error.code === 'ER_DUP_ENTRY' || error.message.includes('idx_users_email_unique')) {
             return res.status(400).json({ 
-                error: "This email address is already registered. Database storage level protection triggered." 
+                error: "This email address is already registered." 
             });
         }
-        
         console.error("Registration Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
 
+// 🔑 লগইন রুট (স্ট্রিক্ট ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -60,7 +89,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     try {
-        
         const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (rows.length === 0) {
             return res.status(401).json({ error: "Invalid email or password." });
@@ -68,24 +96,22 @@ app.post('/api/auth/login', async (req, res) => {
 
         const user = rows[0];
 
-        
-        if (user.status === 'blocked') {
+        // 🔴 ফিক্স: ইউজার যদি ব্লকড থাকে তবে লগইন আটকে ৪০৩ এরর রেসপন্স দেওয়া
+        if (user.status === 'blocked' || user.status === 'Blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
 
-        
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ error: "Invalid email or password." });
         }
 
-        
+        // লাস্ট লগইন টাইম আপডেট (৩য় রিকোয়ারমেন্টের সর্টিং এর জন্য)
         await db.query('UPDATE users SET last_login_time = NOW() WHERE id = ?', [user.id]);
 
-        
         const token = jwt.sign(
             { id: user.id, email: user.email }, 
-            process.env.JWT_SECRET, 
+            process.env.JWT_SECRET || 'secretkey', 
             { expiresIn: '1d' }
         );
 
@@ -101,55 +127,22 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-
-const authenticateAndCheckStatus = async (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-    if (!token) {
-        return res.status(401).json({ error: "Access denied. No token provided." });
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
-
-         
-        const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [decoded.id]);
-        
-         
-        if (rows.length === 0) {
-            return res.status(401).json({ error: "Your account has been deleted. Redirecting to login..." });
-        }
-
-        const user = rows[0];
-
-         
-        if (user.status === 'blocked') {
-            return res.status(401).json({ error: "Your account has been blocked. Redirecting to login..." });
-        }
-
-        
-        next();
-    } catch (error) {
-        return res.status(401).json({ error: "Invalid or expired token." });
-    }
-};
-
+// 📊 ইউজার লিস্ট রুট (৩য় রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
-        
-        const [rows] = await db.query('SELECT id, name, email, status, registration_time, last_login_time FROM users ORDER BY last_login_time DESC');
+        const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
         return res.json(rows);
     } catch (error) {
         return res.status(500).json({ error: "Internal server error." });
     }
 });
 
-
+// 🚫 ব্লক ইউজার রুট
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
-    const { userIds } = req.body; // Array of IDs: [1, 2, 3]
-    if (!userIds || !Array.isArray(userIds)) return res.status(400).json({ error: "Invalid data." });
+    const { userIds } = req.body;
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: "Invalid data." });
+    }
 
     try {
         await db.query('UPDATE users SET status = "blocked" WHERE id IN (?)', [userIds]);
@@ -159,12 +152,14 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
+// 🔓 আনব্লক ইউজার রুট
 app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
-    if (!userIds || !Array.isArray(userIds)) return res.status(400).json({ error: "Invalid data." });
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: "Invalid data." });
+    }
 
     try {
-        
         await db.query('UPDATE users SET status = "active" WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
@@ -172,10 +167,12 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-
+// 🗑️ ডিলিট ইউজার রুট
 app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
-    if (!userIds || !Array.isArray(userIds)) return res.status(400).json({ error: "Invalid data." });
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: "Invalid data." });
+    }
 
     try {
         await db.query('DELETE FROM users WHERE id IN (?)', [userIds]);
@@ -185,15 +182,16 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
+// 🧹 আনভেরিফাইড ইউজার ডিলিট রুট
 app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE status = "unverified"');
         return res.json({ success: true, message: "All unverified users deleted successfully." });
     } catch (error) {
-        console.error("Delete Unverified Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
+
 app.listen(PORT, () => {
     console.log(`🚀 Admin Panel Server running on port ${PORT}`);
 });
