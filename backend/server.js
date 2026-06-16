@@ -11,7 +11,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
-// 🔒 ৫ম রিকোয়ারমেন্ট মিডলওয়্যার: প্রতিটা রিকোয়েস্টের আগে ইউজার এক্সিস্টেন্স ও স্ট্যাটাস চেক
+// 🔒 ৫ নম্বর রিকোয়ারমেন্ট মিডলওয়্যার: প্রতিটা রিকোয়েস্টের আগে ইউজার এক্সিস্টেন্স ও স্ট্যাটাস চেক
 const authenticateAndCheckStatus = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -56,7 +56,7 @@ app.post('/api/auth/register', async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো যাতে লগইন কন্ডিশন নিখুঁত কাজ করে
+        // নতুন ইউজারের ডিফল্ট স্ট্যাটাস সরাসরি 'active' করা হলো
         const query = `
             INSERT INTO users (name, email, password, status) 
             VALUES (?, ?, ?, 'active')
@@ -70,7 +70,6 @@ app.post('/api/auth/register', async (req, res) => {
         });
 
     } catch (error) {
-        // ডুপ্লিকেট ইমেইল চেক (idx_users_email_unique ইনডেক্সের এরর ক্যাচ করা)
         if (error.errno === 1062 || error.code === 'ER_DUP_ENTRY' || error.message.includes('idx_users_email_unique')) {
             return res.status(400).json({ 
                 error: "This email address is already registered." 
@@ -81,7 +80,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// 🔑 লগইন রুট (কробнее ব্লকড অ্যাকাউন্ট রিজেকশন)
+// 🔑 লগইন রুট (কঠোরভাবে ব্লকড অ্যাকাউন্ট রিজেকশন)
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -98,8 +97,7 @@ app.post('/api/auth/login', async (req, res) => {
         const user = rows[0];
         const currentStatus = String(user.status).toLowerCase();
 
-        // 🔴 ফিক্স: ইউজার যদি ব্লকড থাকে বা একটিভ না থাকে তবে লগইন আটকে ৪০৩ এরর রেসপন্স দেওয়া
-        if (currentStatus === 'blocked' || user.status !== 'active') {
+        if (currentStatus === 'blocked') {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
 
@@ -129,7 +127,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 📊 ইউজার লিস্ট রুট (৩য় রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
+// 📊 ইউজার লিস্ট রুট (৩ নম্বর রিকোয়ারমেন্ট: সর্টিং লজিকসহ)
 app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, name, email, last_login_time, status FROM users ORDER BY last_login_time DESC');
@@ -139,7 +137,7 @@ app.get('/api/users', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🚫 ১. ব্লক ইউজার রুট (Fix)
+// 🚫 ব্লক ইউজার রুট
 app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -147,7 +145,6 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 
     try {
-        // [userIds] এর পরিবর্তে সরাসরি userIds পাস করে কুয়েরি ফিক্স করা হলো
         await db.query('UPDATE users SET status = "blocked" WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users blocked successfully." });
     } catch (error) {
@@ -156,7 +153,7 @@ app.post('/api/users/block', authenticateAndCheckStatus, async (req, res) => {
     }
 });
 
-// 🔓 ২. আনব্লক ইউজার রুট (Fix)
+// 🔓 আনব্লক ইউজার রুট
 app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -167,12 +164,11 @@ app.post('/api/users/unblock', authenticateAndCheckStatus, async (req, res) => {
         await db.query('UPDATE users SET status = "active" WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users unblocked successfully." });
     } catch (error) {
-        console.error("Unblock API Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
 
-// 🗑️ ৩. ডিলিট ইউজার রুট (Fix)
+// 🗑️ ডিলিট ইউজার রুট
 app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
     const { userIds } = req.body;
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
@@ -183,10 +179,10 @@ app.post('/api/users/delete', authenticateAndCheckStatus, async (req, res) => {
         await db.query('DELETE FROM users WHERE id IN (?)', [userIds]);
         return res.json({ success: true, message: "Selected users deleted successfully." });
     } catch (error) {
-        console.error("Delete API Error:", error);
         return res.status(500).json({ error: "Internal server error." });
     }
 });
+
 // 🧹 আনভেরিফাইড ইউজার ডিলিট রুট
 app.post('/api/users/delete-unverified', authenticateAndCheckStatus, async (req, res) => {
     try {
