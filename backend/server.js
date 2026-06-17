@@ -119,10 +119,7 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(403).json({ error: "Your account is blocked. Access denied." });
         }
         
-        // ✅ NEW: Prevent unverified users from logging in
-        if (currentStatus === 'unverified') {
-            return res.status(403).json({ error: "Please check your email and verify your account before logging in." });
-        }
+        const isMatch = await bcrypt.compare(password, user.password);
 
         // লাস্ট লগইন টাইম আপডেট
         await db.query('UPDATE users SET last_login_time = NOW() WHERE id = ?', [user.id]);
