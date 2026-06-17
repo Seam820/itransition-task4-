@@ -231,7 +231,7 @@ app.get('/api/auth/verify/:token', async (req, res) => {
         
         const frontendUrl = process.env.FRONTEND_URL || 'https://itransition-frontend-8797.onrender.com'; 
         
-        res.redirect(`${frontendUrl}/login`);
+        res.redirect(`${frontendUrl}`);
     } catch (error) {
         console.error("Verification Error:", error);
         return res.status(400).send("<h1>Verification Link Invalid or Expired</h1><p>Please register again or contact support.</p>");
